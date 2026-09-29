@@ -21,10 +21,9 @@
 - En el frontend, el backend es la fuente de verdad: no hay validación en el cliente y se muestra el mensaje del 400.
 
 ## Riesgos conocidos
-- **Duplicados existentes:** la migración `0002` fallaría si ya hubiera respuestas duplicadas en la base de datos. En producción habría que limpiarlas antes con una migración de datos.
+- **Duplicados existentes:** como el fallo existía, una base de datos real probablemente ya tenga respuestas duplicadas, y la migración `0002` fallaría al crear la restricción. Antes de desplegarla haría una migración de datos que los elimine. No la he automatizado porque implica borrar datos y primero hay que acordar qué fila se conserva (la primera recibida, la más reciente o la `complete` si hay una `partial`).
 - **Concurrencia real:** la carrera está probada con una simulación determinista, no con peticiones en paralelo. Con SQLite los hilos en tests son inestables. La protección real es la restricción de la base de datos.
 - **Zona horaria:** el filtro trabaja con días en UTC y la tabla muestra la hora local del navegador. Cerca de medianoche, una respuesta puede aparecer en un día distinto al filtrado.
-- **Fecha a medio escribir:** el navegador envía un campo de fecha incompleto como vacío, así que ese filtro se ignora sin avisar.
 
 ## Detectado fuera de alcance
 No lo he tocado porque el enunciado no lo pide, pero lo corregiría:

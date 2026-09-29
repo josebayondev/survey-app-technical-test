@@ -6,12 +6,17 @@ const surveyId = 1;
 const data = ref(null);
 const loading = ref(false);
 const error = ref("");
+const from = ref("");
+const to = ref("");
 
 async function loadResults() {
   loading.value = true;
   error.value = "";
   try {
-    data.value = await getSurveyResults(surveyId);
+    data.value = await getSurveyResults(surveyId, {
+      from: from.value,
+      to: to.value,
+    });
   } catch (exception) {
     error.value = exception.message;
   } finally {
@@ -25,6 +30,18 @@ onMounted(loadResults);
 <template>
   <main>
     <h1>{{ data?.survey?.title || "Survey results" }}</h1>
+
+    <form class="filters" @submit.prevent="loadResults">
+      <label>
+        From
+        <input v-model="from" type="date" />
+      </label>
+      <label>
+        To
+        <input v-model="to" type="date" />
+      </label>
+      <button type="submit" :disabled="loading">Filter</button>
+    </form>
 
     <p v-if="loading">Loading...</p>
     <p v-else-if="error" class="error">{{ error }}</p>
@@ -68,6 +85,13 @@ main {
   background: white;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgb(15 23 42 / 8%);
+}
+
+.filters {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
 }
 
 table {

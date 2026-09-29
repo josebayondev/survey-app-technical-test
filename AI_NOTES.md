@@ -97,9 +97,10 @@
 - Los datos de prueba van en una encuesta nueva con fechas fijas. Así no toco el `setUp` ni el test existente que espera 1 respuesta, y los tests no dependen del día en que se ejecutan.
 - Parámetro vacío (`?from=`): DRF lo trata como ausente y no filtra. Lo mantengo porque coincide con lo que hace el frontend.
 - El revisor de backend detectó una línea de 91 caracteres en el serializer; la partí al estilo Black.
-- El revisor de frontend no encontró nada que cambiar. Señaló dos cosas que documento en `SOLUTION.md`:
-  - Si el usuario deja una fecha a medio escribir, el navegador envía el campo vacío y ese filtro se ignora.
-  - El filtro usa días en UTC y la tabla muestra la hora local.
+- El revisor de frontend no encontró nada que cambiar. Señaló dos posibles riesgos:
+  - El filtro usa días en UTC y la tabla muestra la hora local. Lo documento en `SOLUTION.md`.
+  - Una fecha a medio escribir se enviaría vacía y el filtro se ignoraría sin avisar. En la revisión final preparé una comprobación en Vue y, al probarla en el navegador, vi que no hacía falta: los campos están dentro de un `<form>` y Chrome ya bloquea el envío con un aviso ("El campo está incompleto…") sin llamar a la API. Descarté el cambio porque ese código nunca se ejecutaría.
+- Añadí a cada test nuevo un docstring de una línea (`"""Tarea N: ..."""`) para que se vea qué comprueba al ejecutar `test -v 2`. La IA propuso ponerlos en inglés; los dejé en español. Los tests originales no los toqué.
 
 **Cómo lo comprobé**
 - Antes del arreglo fallan 5 tests (devuelven todas las respuestas y `200 != 400`). El del 404 pasa también sin el arreglo, a propósito.
@@ -111,3 +112,16 @@
   - `from` posterior a `to` muestra "to: Debe ser igual o posterior a from.".
   - Vaciar los campos vuelve a mostrar todas las respuestas.
   - En la pestaña de red, cada petición lleva solo los parámetros con valor.
+
+## Documentación final
+
+**Para qué la usé**
+- Redactar `README.md` y `SOLUTION.md` a partir de las decisiones y los riesgos que fui anotando en cada tarea.
+
+**Qué revisé, modifiqué o descarté**
+- Revisé que `SOLUTION.md` solo contara lo que está hecho y probado. Lo que no se implementó aparece como riesgo o mejora, no como hecho.
+- Añadí al README que las ramas no se han borrado a propósito, para poder revisar cada tarea por separado.
+
+**Cómo lo comprobé**
+- Seguí el README desde cero en una copia limpia del repositorio: instalación, `migrate`, `seed_demo`, tests y `npm run build`.
+- Revisé el enunciado punto por punto: código, migraciones, tests, `SOLUTION.md` y `AI_NOTES.md`.

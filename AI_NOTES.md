@@ -4,6 +4,8 @@
 
 - **Claude Code** (CLI) durante toda la prueba.
 - Dos subagentes revisores de solo lectura (`.claude/agents/`), uno de backend y otro de frontend. Solo pueden leer archivos; revisan cada cambio contra el enunciado y las convenciones de `CLAUDE.md` antes de commitear.
+- **Playwright** (a través de Claude Code) para las pruebas en el navegador de la tarea 3: la IA rellenaba los campos y pulsaba `Filter`, y yo revisaba las capturas y las peticiones de red.
+- **MCP de GitHub** (solo lectura) para comprobar después de cada merge que el PR estaba integrado con merge commit y que el historial de `main` era el esperado.
 - Los comandos de git (ramas, commits, push, PR) los ejecuté yo; la IA solo los proponía.
 
 ## Preparación
@@ -107,7 +109,7 @@
 - Después del arreglo pasan los 14 tests, también en orden aleatorio (`--shuffle`). `makemigrations --check` no detecta cambios.
 - Con la API: `2025-02-30`, `abc` y `2025-01-20T10:00` → 400 en `from`; `from` posterior a `to` → 400 en `to`.
 - `npm run build` compila.
-- En el navegador, con los datos de la demo:
+- En el navegador (con Playwright), con los datos de la demo:
   - Solo `from`, solo `to` y el rango devuelven las respuestas esperadas.
   - `from` posterior a `to` muestra "to: Debe ser igual o posterior a from.".
   - Vaciar los campos vuelve a mostrar todas las respuestas.
@@ -121,7 +123,12 @@
 **Qué revisé, modifiqué o descarté**
 - Revisé que `SOLUTION.md` solo contara lo que está hecho y probado. Lo que no se implementó aparece como riesgo o mejora, no como hecho.
 - Añadí al README que las ramas no se han borrado a propósito, para poder revisar cada tarea por separado.
+- En la revisión final pasé los dos revisores sobre `main` completo. No encontraron nada que cambiar en el código. De sus dudas menores:
+  - Corregí la documentación: faltaba nombrar Playwright y el MCP de GitHub en las herramientas, y `SOLUTION.md` decía "no hay validación en el cliente" sin mencionar la validación nativa del formulario.
+  - Mantuve el test de la restricción aunque se solapa en parte con el de la carrera: si algo falla, indica si es la base de datos o la vista.
+  - No toqué el código original fuera de alcance (una línea larga en `views.py` y el test original del token).
 
 **Cómo lo comprobé**
 - Seguí el README desde cero en una copia limpia del repositorio: instalación, `migrate`, `seed_demo`, tests y `npm run build`.
+- Sobre una copia limpia de `main`, seguí los pasos de `CANDIDATE_INSTRUCTIONS.md` y probé las tres tareas con `curl`: aislamiento (200/404/401), webhook repetido (201 y luego 200, sin duplicar) y filtros (solo `from`, solo `to`, rango, fechas inválidas → 400 y encuesta ajena → 404).
 - Revisé el enunciado punto por punto: código, migraciones, tests, `SOLUTION.md` y `AI_NOTES.md`.

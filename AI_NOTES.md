@@ -74,3 +74,40 @@
 - En una base de datos nueva: `migrate`, `seed_demo` y revertir a `0001` y volver a aplicar funcionan.
 - Una fecha con zona horaria (`+02:00`) se guarda y se devuelve en UTC. Un reintento con datos distintos devuelve la respuesta original sin modificarla.
 - Lo probé a mano con `curl`: el mismo evento dos veces → 201 y 200; la encuesta pasa de 3 a 4 respuestas, no a 5. Token incorrecto → 401.
+
+## Tarea 3: filtro de fechas
+
+**Para qué la usé**
+- Definir primero el comportamiento y escribir los tests que lo fijan:
+  - Solo `from`, solo `to` y los dos juntos. Los extremos se incluyen y `to` abarca el día entero: una respuesta a las 23:30 del día `to` entra.
+  - Fecha inválida (`2025-02-30`) → 400 con el mensaje de DRF, que ya sale en español.
+  - `from` posterior a `to` → 400 con un mensaje propio.
+  - Encuesta de otra organización con una fecha inválida → 404. Primero se comprueba la organización y después las fechas, para que un 400 no revele que la encuesta existe.
+- Backend:
+  - `ResultsFilterSerializer` con dos `DateField` opcionales.
+  - La vista filtra con `submitted_at__date__gte/lte`. Las fechas son días en UTC, la zona horaria del proyecto.
+- Frontend:
+  - Dos `<input type="date">` y un botón `Filter`.
+  - `api.js` solo envía los parámetros que tienen valor. Si el backend responde 400, muestra sus mensajes.
+
+**Qué revisé, modifiqué o descarté**
+- `from` es palabra reservada en Python y no puede ser un atributo de clase. Descarté declarar el campo con otro nombre y `source="from"`, porque DRF lee la entrada por el nombre del campo. Lo resolví definiendo los campos en `get_fields()`.
+- Validar las fechas en el cliente: descartado. El backend es la fuente de verdad y el 400 ya da un mensaje claro.
+- Botón "Limpiar": descartado. Para quitar un filtro basta con vaciar el campo y volver a pulsar `Filter`.
+- Los datos de prueba van en una encuesta nueva con fechas fijas. Así no toco el `setUp` ni el test existente que espera 1 respuesta, y los tests no dependen del día en que se ejecutan.
+- Parámetro vacío (`?from=`): DRF lo trata como ausente y no filtra. Lo mantengo porque coincide con lo que hace el frontend.
+- El revisor de backend detectó una línea de 91 caracteres en el serializer; la partí al estilo Black.
+- El revisor de frontend no encontró nada que cambiar. Señaló dos cosas que documento en `SOLUTION.md`:
+  - Si el usuario deja una fecha a medio escribir, el navegador envía el campo vacío y ese filtro se ignora.
+  - El filtro usa días en UTC y la tabla muestra la hora local.
+
+**Cómo lo comprobé**
+- Antes del arreglo fallan 5 tests (devuelven todas las respuestas y `200 != 400`). El del 404 pasa también sin el arreglo, a propósito.
+- Después del arreglo pasan los 14 tests, también en orden aleatorio (`--shuffle`). `makemigrations --check` no detecta cambios.
+- Con la API: `2025-02-30`, `abc` y `2025-01-20T10:00` → 400 en `from`; `from` posterior a `to` → 400 en `to`.
+- `npm run build` compila.
+- En el navegador, con los datos de la demo:
+  - Solo `from`, solo `to` y el rango devuelven las respuestas esperadas.
+  - `from` posterior a `to` muestra "to: Debe ser igual o posterior a from.".
+  - Vaciar los campos vuelve a mostrar todas las respuestas.
+  - En la pestaña de red, cada petición lleva solo los parámetros con valor.

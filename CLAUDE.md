@@ -51,7 +51,7 @@ Backend:
 - Views are `APIView` subclasses (no viewsets/routers). DRF's `Response` is imported as `ApiResponse` because the model is also called `Response`.
 - Input validation uses plain `serializers.Serializer` classes in `serializers.py` (like `WebhookSerializer`); output uses `ModelSerializer`.
 - Model constraints are declared in `Meta.constraints` with an explicit `name` (e.g. `unique_membership`).
-- Tests live in `surveys/tests.py`, inside `SurveyApiTests` (`TestCase`), using `APIClient`, hard-coded URL strings (`f"/api/surveys/{id}/results/"`), one behaviour per test named `test_<behaviour>`, and arrange / act / assert blocks separated by blank lines.
+- Tests live in `surveys/tests.py`, inside `SurveyApiTests` (`TestCase`), using `APIClient`, hard-coded URL strings (`f"/api/surveys/{id}/results/"`), one behaviour per test named `test_<behaviour>` with a one-line docstring (`"""Tarea N: ..."""`, in Spanish), and arrange / act / assert blocks separated by blank lines.
 
 Frontend:
 - Vue 3 `<script setup>` with the Composition API (`ref`, `onMounted`), no extra libraries.

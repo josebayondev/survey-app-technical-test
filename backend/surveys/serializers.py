@@ -16,3 +16,19 @@ class WebhookSerializer(serializers.Serializer):
     answers = serializers.JSONField()
     submitted_at = serializers.DateTimeField()
 
+
+class ResultsFilterSerializer(serializers.Serializer):
+    def get_fields(self):
+        # "from" is a Python keyword, so it cannot be declared as a class attribute.
+        return {
+            "from": serializers.DateField(required=False),
+            "to": serializers.DateField(required=False),
+        }
+
+    def validate(self, attrs):
+        if "from" in attrs and "to" in attrs and attrs["from"] > attrs["to"]:
+            raise serializers.ValidationError(
+                {"to": "Debe ser igual o posterior a from."}
+            )
+        return attrs
+

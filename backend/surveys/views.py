@@ -5,7 +5,7 @@ from rest_framework.response import Response as ApiResponse
 from rest_framework.views import APIView
 
 from .models import Response, Survey
-from .serializers import ResponseSerializer, WebhookSerializer
+from .serializers import ResponseSerializer, ResultsFilterSerializer, WebhookSerializer
 
 
 class SurveyResultsView(APIView):
@@ -15,7 +15,14 @@ class SurveyResultsView(APIView):
         survey = get_object_or_404(
             Survey, pk=survey_id, organization__memberships__user=request.user
         )
+        serializer = ResultsFilterSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        filters = serializer.validated_data
         responses = Response.objects.filter(survey=survey)
+        if "from" in filters:
+            responses = responses.filter(submitted_at__date__gte=filters["from"])
+        if "to" in filters:
+            responses = responses.filter(submitted_at__date__lte=filters["to"])
 
         return ApiResponse(
             {

@@ -49,7 +49,9 @@ class SurveyApiTests(TestCase):
         Membership.objects.create(user=self.user, organization=self.other_organization)
 
         own_response = self.client.get(f"/api/surveys/{self.survey.id}/results/")
-        other_response = self.client.get(f"/api/surveys/{self.other_survey.id}/results/")
+        other_response = self.client.get(
+            f"/api/surveys/{self.other_survey.id}/results/"
+        )
 
         self.assertEqual(own_response.status_code, 200)
         self.assertEqual(other_response.status_code, 200)

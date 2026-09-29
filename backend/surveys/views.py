@@ -12,7 +12,9 @@ class SurveyResultsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, survey_id):
-        survey = get_object_or_404(Survey, pk=survey_id)
+        survey = get_object_or_404(
+            Survey, pk=survey_id, organization__memberships__user=request.user
+        )
         responses = Response.objects.filter(survey=survey)
 
         return ApiResponse(

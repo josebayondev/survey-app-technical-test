@@ -18,7 +18,7 @@
 - Fechas inválidas: **400** con el mensaje de validación de DRF en el campo que falla (`from` o `to`). `from` posterior a `to` → 400. Un parámetro vacío se ignora.
 - Primero se comprueba la organización (404) y después las fechas, para que un 400 no revele que existe una encuesta ajena.
 - La validación está en un serializer, como el webhook. `from` es palabra reservada en Python, así que los campos se declaran en `get_fields()`.
-- En el frontend, el backend es la fuente de verdad: no hay validación en el cliente y se muestra el mensaje del 400.
+- En el frontend, el backend es la fuente de verdad: no hay validación propia en el cliente y se muestra el mensaje del 400. La validación nativa del formulario impide enviar una fecha a medio escribir (comprobado en Chrome).
 
 ## Riesgos conocidos
 - **Duplicados existentes:** como el fallo existía, una base de datos real probablemente ya tenga respuestas duplicadas, y la migración `0002` fallaría al crear la restricción. Antes de desplegarla haría una migración de datos que los elimine. No la he automatizado porque implica borrar datos y primero hay que acordar qué fila se conserva (la primera recibida, la más reciente o la `complete` si hay una `partial`).

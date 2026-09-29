@@ -25,6 +25,12 @@ class SurveyApiTests(TestCase):
             answers={"nps": 9},
             submitted_at=timezone.now() - timedelta(days=1),
         )
+        self.other_organization = Organization.objects.create(name="Contoso")
+        self.other_survey = Survey.objects.create(
+            organization=self.other_organization,
+            title="Employee NPS",
+            external_key="contoso-enps",
+        )
         self.client = APIClient()
         self.client.force_authenticate(self.user)
 
@@ -33,6 +39,22 @@ class SurveyApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 1)
+
+    def test_user_cannot_access_survey_from_another_organization(self):
+        response = self.client.get(f"/api/surveys/{self.other_survey.id}/results/")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_member_of_several_organizations_can_access_each_survey(self):
+        Membership.objects.create(user=self.user, organization=self.other_organization)
+
+        own_response = self.client.get(f"/api/surveys/{self.survey.id}/results/")
+        other_response = self.client.get(
+            f"/api/surveys/{self.other_survey.id}/results/"
+        )
+
+        self.assertEqual(own_response.status_code, 200)
+        self.assertEqual(other_response.status_code, 200)
 
     def test_webhook_rejects_invalid_token(self):
         response = self.client.post(

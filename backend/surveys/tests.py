@@ -1,6 +1,10 @@
 from datetime import timedelta
+from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError, transaction
+from django.db.models.query import QuerySet
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -31,6 +35,13 @@ class SurveyApiTests(TestCase):
             title="Employee NPS",
             external_key="contoso-enps",
         )
+        self.webhook_payload = {
+            "survey_key": self.survey.external_key,
+            "event_id": "evt-002",
+            "status": "complete",
+            "answers": {"nps": 8},
+            "submitted_at": timezone.now().isoformat(),
+        }
         self.client = APIClient()
         self.client.force_authenticate(self.user)
 
@@ -70,4 +81,71 @@ class SurveyApiTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+    def test_webhook_duplicate_event_creates_single_response(self):
+        first_response = self.client.post(
+            "/api/webhooks/responses/",
+            self.webhook_payload,
+            format="json",
+            headers={"X-Webhook-Token": settings.WEBHOOK_TOKEN},
+        )
+        second_response = self.client.post(
+            "/api/webhooks/responses/",
+            self.webhook_payload,
+            format="json",
+            headers={"X-Webhook-Token": settings.WEBHOOK_TOKEN},
+        )
+
+        self.assertEqual(first_response.status_code, 201)
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(second_response.data["id"], first_response.data["id"])
+        self.assertEqual(Response.objects.filter(external_id="evt-002").count(), 1)
+
+    def test_response_event_is_unique_per_survey(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Response.objects.create(
+                survey=self.survey,
+                external_id="evt-001",
+                status="complete",
+                answers={"nps": 9},
+                submitted_at=timezone.now(),
+            )
+
+    def test_webhook_handles_concurrent_duplicate_event(self):
+        original_get = QuerySet.get
+        missed_lookups = []
+
+        def get_missing_first_response(queryset, *args, **kwargs):
+            # Simulates another request inserting the event right after our lookup.
+            if queryset.model is Response and not missed_lookups:
+                missed_lookups.append(kwargs)
+                raise Response.DoesNotExist
+            return original_get(queryset, *args, **kwargs)
+
+        with mock.patch.object(QuerySet, "get", get_missing_first_response):
+            response = self.client.post(
+                "/api/webhooks/responses/",
+                {**self.webhook_payload, "event_id": "evt-001"},
+                format="json",
+                headers={"X-Webhook-Token": settings.WEBHOOK_TOKEN},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Response.objects.filter(external_id="evt-001").count(), 1)
+        self.assertEqual(len(missed_lookups), 1)
+
+    def test_webhook_accepts_same_event_id_in_another_survey(self):
+        response = self.client.post(
+            "/api/webhooks/responses/",
+            {
+                **self.webhook_payload,
+                "survey_key": self.other_survey.external_key,
+                "event_id": "evt-001",
+            },
+            format="json",
+            headers={"X-Webhook-Token": settings.WEBHOOK_TOKEN},
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Response.objects.filter(external_id="evt-001").count(), 2)
 

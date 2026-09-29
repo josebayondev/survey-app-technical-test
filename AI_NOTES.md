@@ -46,3 +46,31 @@
   - `bob` → encuesta de Northwind: 404. `bob` → la suya: 200.
   - `ana` → encuesta de Contoso: 404. `ana` → la suya: 200.
   - Sin credenciales: 401.
+
+## Tarea 2: webhook idempotente
+
+**Para qué la usé**
+- Escribir primero los tests que reproducen el fallo:
+  - El mismo evento enviado dos veces → debe haber 1 fila; la primera respuesta es 201 y la segunda 200 con la misma respuesta.
+  - Un `create` duplicado directo → la base de datos debe lanzar `IntegrityError`.
+  - Dos peticiones casi simultáneas → simulación determinista: la primera lectura no encuentra el evento (como si otra petición lo insertara justo después) y aun así el resultado es 200 y 1 fila.
+  - El mismo `event_id` en otra encuesta → se crea (la clave es por encuesta).
+- Aplicar el arreglo en dos capas:
+  - Base de datos: `UniqueConstraint(survey, external_id)` con migración `0002`. Es lo que garantiza que no haya duplicados aunque lleguen dos peticiones a la vez.
+  - Vista: `get_or_create` → 201 si se crea, 200 si ya existía.
+
+**Qué revisé, modifiqué o descarté**
+- Test de concurrencia con hilos reales: descartado. Con SQLite en tests es inestable ("database is locked"); la simulación prueba el mismo camino sin depender del tiempo.
+- Capturar `IntegrityError` a mano en la vista: descartado. Comprobé en el código de Django 5.1 (`QuerySet.get_or_create`) que ya lo captura dentro de un `atomic` y vuelve a leer la fila.
+- Migración para limpiar duplicados existentes antes de la restricción: descartada; no lo pide el enunciado y los datos de la demo no tienen duplicados. La menciono en `SOLUTION.md`.
+- El revisor de backend confirmó que la simulación pasa por la rama `IntegrityError` → relectura de Django. Propuso comprobar que el parche llega a actuar (si no, el test pasaría por el camino normal); lo añadí como última comprobación, para que antes del arreglo el fallo siga siendo `201 != 200`.
+- La migración generada usaba comillas simples y una cabecera con fecha; la dejé con el mismo formato que `0001`.
+
+**Cómo lo comprobé**
+- Antes del arreglo fallan 3 tests (`201 != 200` e `IntegrityError not raised`); el de otra encuesta pasa también sin el arreglo, a propósito.
+- Con la restricción pero sin cambiar la vista, el duplicado da error 500 (`IntegrityError`): la base de datos protege, pero hace falta la vista para responder bien.
+- Después del arreglo, los 8 tests pasan, también en orden aleatorio (`--shuffle`) y con otra zona horaria en la máquina.
+- `sqlmigrate surveys 0002` muestra `UNIQUE ("survey_id", "external_id")` y `makemigrations --check` no detecta cambios pendientes.
+- En una base de datos nueva: `migrate`, `seed_demo` y revertir a `0001` y volver a aplicar funcionan.
+- Una fecha con zona horaria (`+02:00`) se guarda y se devuelve en UTC. Un reintento con datos distintos devuelve la respuesta original sin modificarla.
+- Lo probé a mano con `curl`: el mismo evento dos veces → 201 y 200; la encuesta pasa de 3 a 4 respuestas, no a 5. Token incorrecto → 401.

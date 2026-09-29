@@ -46,7 +46,7 @@ There is no linter or formatter configured.
 Follow the existing style; do not introduce new patterns or libraries.
 
 Backend:
-- Double quotes, 4-space indentation, Black-style wrapping (trailing commas on multi-line calls).
+- Double quotes, 4-space indentation, Black-style formatting (88-character lines; one argument per line with a trailing comma when a call does not fit).
 - Imports: standard library, then Django, then DRF, then relative local imports (`from .models import ...`).
 - Views are `APIView` subclasses (no viewsets/routers). DRF's `Response` is imported as `ApiResponse` because the model is also called `Response`.
 - Input validation uses plain `serializers.Serializer` classes in `serializers.py` (like `WebhookSerializer`); output uses `ModelSerializer`.

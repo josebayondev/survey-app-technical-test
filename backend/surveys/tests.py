@@ -46,6 +46,7 @@ class SurveyApiTests(TestCase):
         self.client.force_authenticate(self.user)
 
     def create_survey_with_dated_responses(self):
+        """Crea una encuesta de Northwind con respuestas en fechas fijas (UTC)."""
         survey = Survey.objects.create(
             organization=self.organization,
             title="Onboarding",
@@ -72,11 +73,13 @@ class SurveyApiTests(TestCase):
         self.assertEqual(response.data["count"], 1)
 
     def test_user_cannot_access_survey_from_another_organization(self):
+        """Tarea 1: una encuesta de otra organización devuelve 404."""
         response = self.client.get(f"/api/surveys/{self.other_survey.id}/results/")
 
         self.assertEqual(response.status_code, 404)
 
     def test_member_of_several_organizations_can_access_each_survey(self):
+        """Tarea 1: un miembro de varias organizaciones ve las encuestas de todas."""
         Membership.objects.create(user=self.user, organization=self.other_organization)
 
         own_response = self.client.get(f"/api/surveys/{self.survey.id}/results/")
@@ -103,6 +106,7 @@ class SurveyApiTests(TestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_webhook_duplicate_event_creates_single_response(self):
+        """Tarea 2: un evento repetido devuelve 201 y luego 200, y guarda una fila."""
         first_response = self.client.post(
             "/api/webhooks/responses/",
             self.webhook_payload,
@@ -122,6 +126,7 @@ class SurveyApiTests(TestCase):
         self.assertEqual(Response.objects.filter(external_id="evt-002").count(), 1)
 
     def test_response_event_is_unique_per_survey(self):
+        """Tarea 2: la base de datos rechaza un evento duplicado en una encuesta."""
         with self.assertRaises(IntegrityError), transaction.atomic():
             Response.objects.create(
                 survey=self.survey,
@@ -132,6 +137,7 @@ class SurveyApiTests(TestCase):
             )
 
     def test_webhook_handles_concurrent_duplicate_event(self):
+        """Tarea 2: un duplicado concurrente devuelve 200 y guarda una sola fila."""
         original_get = QuerySet.get
         missed_lookups = []
 
@@ -155,6 +161,7 @@ class SurveyApiTests(TestCase):
         self.assertEqual(len(missed_lookups), 1)
 
     def test_webhook_accepts_same_event_id_in_another_survey(self):
+        """Tarea 2: el mismo event_id en otra encuesta crea una respuesta nueva."""
         response = self.client.post(
             "/api/webhooks/responses/",
             {
@@ -170,6 +177,7 @@ class SurveyApiTests(TestCase):
         self.assertEqual(Response.objects.filter(external_id="evt-001").count(), 2)
 
     def test_results_can_be_filtered_by_from_date(self):
+        """Tarea 3: solo `from` devuelve las respuestas desde ese día (incluido)."""
         survey = self.create_survey_with_dated_responses()
 
         response = self.client.get(f"/api/surveys/{survey.id}/results/?from=2025-01-20")
@@ -181,6 +189,7 @@ class SurveyApiTests(TestCase):
         )
 
     def test_results_can_be_filtered_by_to_date_including_whole_day(self):
+        """Tarea 3: solo `to` devuelve las respuestas hasta el final de ese día."""
         survey = self.create_survey_with_dated_responses()
 
         response = self.client.get(f"/api/surveys/{survey.id}/results/?to=2025-01-20")
@@ -192,6 +201,7 @@ class SurveyApiTests(TestCase):
         )
 
     def test_results_can_be_filtered_by_date_range(self):
+        """Tarea 3: `from` y `to` juntos devuelven las respuestas del rango."""
         survey = self.create_survey_with_dated_responses()
 
         response = self.client.get(
@@ -203,6 +213,7 @@ class SurveyApiTests(TestCase):
         self.assertEqual(response.data["results"][0]["external_id"], "evt-jan-20")
 
     def test_results_reject_invalid_date(self):
+        """Tarea 3: una fecha inválida devuelve 400 con el error en el campo."""
         response = self.client.get(
             f"/api/surveys/{self.survey.id}/results/?from=2025-02-30"
         )
@@ -211,6 +222,7 @@ class SurveyApiTests(TestCase):
         self.assertIn("from", response.data)
 
     def test_results_reject_from_date_after_to_date(self):
+        """Tarea 3: `from` posterior a `to` devuelve 400."""
         response = self.client.get(
             f"/api/surveys/{self.survey.id}/results/?from=2025-01-25&to=2025-01-15"
         )
@@ -219,6 +231,7 @@ class SurveyApiTests(TestCase):
         self.assertIn("to", response.data)
 
     def test_invalid_date_filter_does_not_reveal_other_organization_survey(self):
+        """Tarea 3: se comprueba la organización antes que las fechas (404, no 400)."""
         response = self.client.get(
             f"/api/surveys/{self.other_survey.id}/results/?from=abc"
         )
